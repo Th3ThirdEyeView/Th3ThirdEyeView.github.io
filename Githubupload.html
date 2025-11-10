@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Toy Substitution Encryptor (CodePen)</title>
+<style>
+  :root{--bg:#0b1220;--card:#071124;--muted:#93a3b8;--accent:#7c3aed}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:linear-gradient(180deg,#041022,#071124);color:#e6eef8;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;display:flex;align-items:center;justify-content:center;padding:20px}
+  .wrap{width:100%;max-width:1100px;display:grid;grid-template-columns:380px 1fr;gap:18px}
+  .card{background:rgba(255,255,255,0.03);padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 28px rgba(2,6,23,0.6)}
+  h1{margin:0 0 8px;font-size:18px}
+  label{display:block;font-size:13px;color:var(--muted);margin:8px 0 6px}
+  textarea, input[type="text"], input[type="button"]{width:100%;font-size:13px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  textarea{min-height:180px;resize:vertical}
+  .controls{display:flex;gap:8px;margin-top:10px}
+  button{cursor:pointer;padding:10px 12px;border-radius:8px;border:none;background:var(--accent);color:white;font-weight:600}
+  .muted{color:var(--muted);font-size:13px;margin-top:8px}
+  .out{white-space:pre-wrap;background:rgba(0,0,0,0.25);padding:12px;border-radius:8px;min-height:120px;overflow:auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .small{font-size:12px;color:var(--muted)}
+  .row{display:flex;gap:8px;align-items:center}
+  .copybtn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit;padding:6px 10px;border-radius:8px}
+  footer{font-size:12px;color:var(--muted);margin-top:12px}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="topbar">
+        <div>
+          <h1>Toy Encryptor — mapping (prefilled)</h1>
+          <div class="small">One mapping per line: index = replacement. (1 = A, 2 = B, ... 26 = Z)</div>
+        </div>
+        <div class="row">
+          <label style="margin:0 8px 0 0"><input id="cases" type="checkbox"> Case-sensitive</label>
+        </div>
+      </div>
+
+      <label>Mapping (index = replacement). Edit if you want:</label>
+      <textarea id="mappingArea" spellcheck="false">
+1	$5g
+2	P^8
+3	!zB
+4	3&k
+5	m#R
+6	~4V
+7	F(j
+8	a+6D
+9	%t9
+10	Y/u
+11	@iK
+12	W>7
+13	z<O
+14	t#A!
+15	9w(L
+16	>c1
+17	d{0%
+18	}J7
+19	^E2
+20	b:X
+21	L&m
+22	)pG~
+23	q[3
+24	;sH
+25	+r0
+26	1k?
+      </textarea>
+
+      <div class="muted">Notes: letters map by A=1...Z=26. Continuous numeric runs like <code>142</code> will encrypt to <code>*$5g3&kP^8*</code> (wrapped in *). Decryption understands those wrapped blocks.</div>
+    </div>
+
+    <div class="card">
+      <h1>Encrypt / Decrypt</h1>
+
+      <label for="inputText">Input text</label>
+      <textarea id="inputText" placeholder="Type or paste text to encrypt or decrypt..."></textarea>
+
+      <div class="controls" style="margin-top:10px">
+        <button id="encryptBtn">Encrypt</button>
+        <button id="decryptBtn" style="background:#0ea5a4">Decrypt</button>
+        <button id="clearBtn" class="copybtn">Clear</button>
+        <button id="copyBtn" class="copybtn">Copy Output</button>
+      </div>
+
+      <label style="margin-top:12px">Output</label>
+      <div id="output" class="out"></div>
+
+      <footer>Quick: letters A–Z → mapping index 1–26. Numbers (digit runs) encrypted to a star-wrapped concatenation of mapping entries for each digit (1–9). '0' is preserved as '0' inside the block.</footer>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // UI elements
+  const mappingArea = document.getElementById('mappingArea');
+  const inputText = document.getElementById('inputText');
+  const output = document.getElementById('output');
+  const encryptBtn = document.getElementById('encryptBtn');
+  const decryptBtn = document.getElementById('decryptBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const caseCheckbox = document.getElementById('cases');
+
+  // parse mapping textarea into array indexed 1..26
+  function parseMapping(){
+    const lines = mappingArea.value.split(/\r?\n/).map(l=>l.trim()).filter(l=>l!=='');
+    // accept either "1\t$5g" or "$5g" per-line. If numeric prefix present, use it; otherwise use sequential.
+    const map = Array(27).fill(null); // index 0 unused
+    let seqIndex = 1;
+    for(const raw of lines){
+      let line = raw;
+      // allow "n<TAB>value" or "n=value" or "n value"
+      const m = line.match(/^(\d{1,2})\s*[=\t\s]\s*(.+)$/);
+      if(m){
+        const idx = parseInt(m[1],10);
+        map[idx] = m[2];
+      } else {
+        if(seqIndex<=26) map[seqIndex++] = line;
+      }
+    }
+    // fallback fill any remaining nulls with empty string
+    for(let i=1;i<=26;i++) if(map[i]===null) map[i] = '';
+    return map;
+  }
+
+  // Build encode maps and decode maps
+  function buildMaps(){
+    const map = parseMapping();
+    const enc = {}; // letter -> code
+    const dec = {}; // code -> letter
+    for(let i=1;i<=26;i++){
+      const letter = String.fromCharCode(64+i); // 'A'..'Z'
+      enc[letter] = map[i];
+      dec[map[i]] = letter;
+    }
+    // Also create a digit map for digits 1-9 using same entries for indices 1..9
+    const digitEnc = {};
+    const digitDec = {};
+    for(let d=1; d<=9; d++){
+      digitEnc[String(d)] = map[d];
+      digitDec[map[d]] = String(d);
+    }
+    return {enc, dec, digitEnc, digitDec};
+  }
+
+  // escape regexp special characters for building regex
+  function reEscape(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  // Encrypt function
+  function encrypt(text){
+    const cs = caseCheckbox.checked;
+    const {enc, digitEnc} = buildMaps();
+    // Step 1: handle digit runs: replace sequences of digits with star-wrapped mapped concatenation
+    // For each run, build replacement: '*' + concat(digitEnc[d] or '0') + '*'
+    text = text.replace(/\d+/g, (numRun)=>{
+      let out = '*';
+      for(const ch of numRun){
+        if(ch === '0'){ out += '0'; } // preserve 0 as '0' inside block (user didn't provide mapping for 0)
+        else out += (digitEnc[ch] ?? ch);
+      }
+      out += '*';
+      return out;
+    });
+
+    // Step 2: replace letters A-Z (and optionally a-z)
+    // We must avoid replacing inside star-wrapped blocks. So split on blocks and only transform outside.
+    const parts = text.split(/(\*[^*]*\*)/g); // keep star-wrapped chunks
+    for(let i=0;i<parts.length;i++){
+      if(parts[i].startsWith('*') && parts[i].endsWith('*')) continue; // keep as-is
+      // replace letters each character
+      parts[i] = parts[i].split('').map(ch=>{
+        if(!cs) ch = ch.toUpperCase();
+        if(ch >= 'A' && ch <= 'Z'){
+          return enc[ch] ?? ch;
+        }
+        return ch;
+      }).join('');
+    }
+    return parts.join('');
+  }
+
+  // Decrypt function
+  function decrypt(text){
+    const cs = caseCheckbox.checked;
+    const {dec, digitDec} = buildMaps();
+
+    // Build array of known codes for letters sorted by length desc (greedy)
+    const letterCodes = Object.keys(dec).filter(k=>k).sort((a,b)=>b.length - a.length);
+    // Same for digit codes (1..9)
+    const digitCodes = Object.keys(digitDec).filter(k=>k).sort((a,b)=>b.length - a.length);
+
+    // First, handle star-wrapped blocks (numbers). Replace them with the decoded digit runs.
+    text = text.replace(/\*([^*]*)\*/g, (m, inner)=>{
+      let s = inner;
+      let pos = 0;
+      let digits = '';
+      while(pos < s.length){
+        // try to match any digit code (greedy longest)
+        let matched = false;
+        for(const code of digitCodes){
+          if(s.startsWith(code, pos)){
+            digits += digitDec[code];
+            pos += code.length;
+            matched = true;
+            break;
+          }
+        }
+        if(!matched){
+          // if char is '0', keep '0'; otherwise if no match, append char and advance one (best-effort)
+          digits += s[pos];
+          pos++;
+        }
+      }
+      return digits;
+    });
+
+    // Now decode letters: greedily match codes in the whole text.
+    // Because codes can contain arbitrary symbols, we do a greedy scan from left to right:
+    let out = '';
+    let i = 0;
+    while(i < text.length){
+      // try to match any code (longest first)
+      let matched = false;
+      for(const code of letterCodes){
+        if(code === '') continue;
+        if(text.startsWith(code, i)){
+          out += dec[code];
+          i += code.length;
+          matched = true;
+          break;
+        }
+      }
+      if(matched) continue;
+      // if no code matched, just copy the char (preserve case according to checkbox)
+      let ch = text[i];
+      if(!cs && ch >= 'A' && ch <= 'Z') ch = ch.toLowerCase();
+      out += ch;
+      i++;
+    }
+
+    return out;
+  }
+
+  // wire buttons
+  encryptBtn.addEventListener('click', ()=>{
+    try{
+      const res = encrypt(inputText.value || '');
+      output.textContent = res;
+    }catch(e){
+      output.textContent = 'Error during encryption: '+e.message;
+    }
+  });
+
+  decryptBtn.addEventListener('click', ()=>{
+    try{
+      const res = decrypt(inputText.value || '');
+      output.textContent = res;
+    }catch(e){
+      output.textContent = 'Error during decryption: '+e.message;
+    }
+  });
+
+  copyBtn.addEventListener('click', ()=>{
+    const txt = output.textContent || '';
+    navigator.clipboard?.writeText(txt).then(()=>{ copyBtn.textContent='Copied ✓'; setTimeout(()=>copyBtn.textContent='Copy Output',900); }).catch(()=>{alert('Clipboard failed — copy manually');});
+  });
+
+  clearBtn.addEventListener('click', ()=>{
+    inputText.value = '';
+    output.textContent = '';
+  });
+
+  // quick sample fill
+  if(!inputText.value) inputText.value = "Hello world 142! Try: ABC -> will map via indices (1,2,3).";
+
+})();
+</script>
+</body>
+</html>
