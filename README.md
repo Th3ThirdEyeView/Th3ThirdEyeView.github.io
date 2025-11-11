@@ -23,7 +23,7 @@ This project is a personal experiment in building a custom encryption system —
 
 ## 🧠 Note
 This system is for ***EDUCATIONAL AND ENTERTAINMENT PURPOSES ONLY.***
-It’s not intended for protecting real sensitive data or secure communication.
+It’s not intended to protect sensitive data or secure communication.
 
 ---
 
@@ -42,7 +42,7 @@ It’s not intended for protecting real sensitive data or secure communication.
 
 ## 🧾 License
 Licensed under the **MIT License © 2025 Th3ThirdEyeView**  
-You’re free to use, modify, and share this project — just give proper credit.  
+You’re free to use, modify, and share this project — give proper credit.  
 
 ---
 
