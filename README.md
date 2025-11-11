@@ -54,4 +54,4 @@ You’re free to use, modify, and share this project — just give proper credit
 ---
 
 ***Created by [Th3ThirdEyeView](https://github.com/Th3ThirdEyeView)***  
-> “Code it. Encrypt it. Break it. Repeat.”
+> “Eat. Sleep. Code it. Repeat.”
