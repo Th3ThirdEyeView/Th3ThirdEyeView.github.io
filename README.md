@@ -1,7 +1,7 @@
 # 🔐 Encryptor
 
-A fun, browser-based encryption and decryption tool made with **HTML, CSS, and JavaScript**.  
-This project is a personal experiment in building a custom encryption system — not meant for real-world security (yet 👀).
+A fun, browser-based encryption and decryption tool made with **HTML**.  
+This project is a personal experiment in building a custom encryption system — not meant for real-world security (yet 🤨👀).
 
 ---
 
@@ -28,9 +28,7 @@ It’s not intended for protecting real sensitive data or secure communication.
 ---
 
 ## 🧩 Tech Stack
-- HTML5  
-- CSS3  
-- JavaScript (Vanilla)
+- HTML
 
 ---
 
