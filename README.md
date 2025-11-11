@@ -49,7 +49,7 @@ You’re free to use, modify, and share this project — just give proper credit
 ---
 
 ### 🌐 Live Demo
-*(Coming soon — will link once GitHub Pages is active)*
+[Click here to use in browser!](https://th3thirdeyeview.github.io/)
 
 ---
 
